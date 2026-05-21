@@ -1,0 +1,909 @@
+% Compile: lualatex
+
+\documentclass[fontsize=14pt]{scrartcl}
+
+\usepackage[preset=modeling]{bmstu-report}
+
+% \usepackage{fontspec}
+% % Последний язык в списке — основной (russian); english — для англ. заголовков.
+% \usepackage[english,russian]{babel}
+% \usepackage{amsmath}
+% \defaultfontfeatures{Ligatures = TeX}
+% \setmainfont{CMU Serif}[
+%   Extension      = .otf,
+%   UprightFont    = cmunrm,
+%   BoldFont       = cmunbx,
+%   ItalicFont     = cmunti,
+%   BoldItalicFont = cmunbi,
+% ]
+% \setsansfont{CMU Sans Serif}[
+%   Extension      = .otf,
+%   UprightFont    = cmunss,
+%   BoldFont       = cmunsx,
+%   ItalicFont     = cmunsl,
+%   BoldItalicFont = cmunbl,
+% ]
+% \setmonofont{CMU Typewriter Text}[
+%   Extension   = .otf,
+%   UprightFont = cmuntt,
+%   BoldFont    = cmuntb,
+%   ItalicFont  = cmunit,
+% ]
+
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{positioning,calc}
+\usetikzlibrary{backgrounds}
+\pgfdeclarelayer{background}
+\pgfsetlayers{background,main}
+
+\usepackage{amssymb}
+\newcommand{\bigsqcap}{\mathop{\raisebox{-0.15ex}{\scalebox{1.6}{$\sqcap$}}}\displaylimits}
+
+\newcommand{\Lang}{\mathcal{L}}
+\DeclareMathOperator{\Fix}{Fix}
+\DeclareMathOperator{\StdMor}{StdMor}
+\newcommand{\SP}{\mathrm{SP}}
+\newcommand{\SOB}{\mathrm{SOB}}
+\newcommand{\Cons}{\mathsf{Cons}}
+\newcommand{\bigboxtimes}{\mathop{\text{\raisebox{-0.2ex}{\scalebox{1.6}{$\boxtimes$}}}}}
+
+\newlength{\tabparindent}
+% Текст в ячейке таблицы с обычными абзацами и красной строкой (для \texttt{tabularx}).
+\newcommand{\tabparblock}[1]{%
+  \begin{minipage}[t]{\linewidth}%
+    \setlength{\parindent}{\tabparindent}%
+    \setlength{\parskip}{0pt plus .2pt}%
+    \strut\ignorespaces
+    #1%
+  \end{minipage}%
+}
+
+
+\begin{document}
+
+% \section*{ВВЕДЕНИЕ}
+\section*{СПИСОК ОБОЗНАЧЕНИЙ И СОКРАЩЕНИЙ}
+
+В работе используются следующие обозначения и сокращения: 
+
+\vspace{0.3cm}
+
+\noindent
+\begin{tabular}{@{}>{\setlength{\parindent}{0pt}\raggedright\arraybackslash}p{3.3cm}@{\quad---\quad}>{\setlength{\parindent}{0pt}\raggedright\arraybackslash}p{\dimexpr\linewidth-2.2cm-4em\relax}@{}}
+  $\varepsilon$ & пустое слово \\
+  $\Sigma$      & конечный алфавит \\
+  $\Sigma^*$    & множество всех строк над $\Sigma$ \\
+  $\Sigma^+$    & множество всех непустых строк над $\Sigma$ \\
+  $\sigma_1 \circ \sigma_2$ & композиция морфизмов $\sigma_1(\sigma_2(x))$ \\
+  $\sigma^{-1}(x)$ & прообраз слова $x$ в $\sigma$ \\
+  $\sigma|_{A}$ & ограничение морфизма $\sigma$ на множество $A$ \\
+  $im(\sigma)$ & образ морфизма $\sigma$ \\
+  $\Lang(S)$    & язык, задаваемый $S$ \\
+  LTL & локально тестируемый язык (locally testable language) \\
+  LTL-свойство & свойство, определяющее локально тестируемый язык  \\
+  $\SP(\sigma)$ & класс строковых свойств, отвечающих стандартному морфизму $\sigma$ 
+\end{tabular}
+
+\newpage
+
+
+\section{Строковые свойства}
+\label{sec:string-properties}
+
+Уравнением в словах, как известно, называется равенство вида $\Phi = \Psi$, где $\Phi$ и $\Psi$ --- слова над объединенным 
+алфавитом $\Sigma \cup X$, где $X$ --- множество переменных.
+
+В данной работе будем рассматривать системы линейных уравнений в словах от трех переменных вида
+\begin{equation}
+  \label{eq:system-of-equations}
+\begin{cases}
+    Z = c \\
+    Z = p W_0\\
+    Z = W_1 s\\
+    Z = X_1 w_1 Y_1 \\
+    Z = X_2 w_2 Y_2 \\
+    \vdots \\
+    Z = X_n w_n Y_n \\
+\end{cases},
+\end{equation}
+
+где, возможно, отсутствуют уравнения некоторых типов. Легко видеть, что, если присутствует уравнение вида $Z = c$, 
+то система имеет решение тогда, когда константы $p, s, w_1, w_2, \ldots, w_n$ являются префиксом, 
+суффиксом и подсловами константы $c$ соответственно.
+
+Вид уравнений в системе~\ref{eq:system-of-equations} описывает структуру строк, являющихся решениями системы относительно переменной $Z$:
+$p$ задает общий префикс, $s$ --- общий суффикс, $w_1, w_2, \ldots, w_n$ --- подслова, которые одновременно встречаются в строке-решении.
+
+
+% В этом разделе вводятся базовые понятия, в терминах которых ниже формализуется
+% абстрактный анализ строк: стандартный морфизм, трёхпеременная система линейных
+% уравнений в словах и пара $(\sigma, S)$, которую мы будем называть
+% \emph{строковым свойством}. Семейство строковых свойств с фиксированным
+% морфизмом $\sigma$ образует полурешётку, неформально описанную в конце раздела
+% (подробное формальное построение --- в разделе~\ref{sec:sp-domain}).
+
+Приведем несколько определений, которые будут использоваться в дальнейшем.
+
+Отметим, что на протяжении всей работы будет рассматриваться фиксированный алфавит $\Sigma$, оснащенный линейным порядком $\leq$ и 
+минимальным элементом $\emptyset$.
+
+\begin{Definition}
+Морфизм строк $\sigma \colon \Sigma^* \to \Sigma^*$ называется \emph{алфавитным} (или \emph{неудлиняющим по длине}, \emph{length-non-increasing}), если образ любого символа алфавита $\Sigma$ --- либо символ, либо пустое слово $\varepsilon$.
+\end{Definition}
+
+\begin{Definition}[стандартный морфизм]
+Будем рассматривать морфизмы $\sigma$, задаваемые разбиением алфавита $\Sigma$ на подмножества $\Sigma_1, \ldots, \Sigma_k, \Sigma_\varepsilon$ при $|\Sigma_i| > 1$, 
+которые идемпотентны, не увеличивают букву относительно алфавитного порядка и сохраняют это разбиение, то есть
+\[
+  \forall \delta \in \Sigma_i \quad
+  \sigma(\delta) \leq \delta \;\land\; \sigma(\sigma(\delta)) = \sigma(\delta) \;\land\; \sigma(\delta) \in \Sigma_i,
+  \qquad
+  \forall \delta \in \Sigma_\varepsilon \quad \sigma(\delta) = \varepsilon .
+\]
+Такие морфизмы называются \emph{стандартными}.
+\end{Definition}
+
+В стандартном морфизме для $\delta \in \Sigma_i$ значение $\sigma(\delta)$ --- минимальный относительно $\leq$ символ в $\Sigma_i$.
+
+\begin{Definition}
+\label{def:morphorder}
+Для стандартных морфизмов $\sigma_1$ и $\sigma_2$ полагаем $\sigma_1 \preceq \sigma_2$ тогда и только тогда, когда $\sigma_2 \circ \sigma_1 = \sigma_2$.
+\end{Definition}
+
+Для любого неудлиняющего морфизма $\theta$ с условием $\forall \delta\; \theta(\delta) \preceq \delta$ неподвижная точка $\theta^*$ является стандартным морфизмом относительно некоторого разбиения алфавита.
+
+% \begin{Proposition}
+%   Стандартные морфизмы образуют полурешетку с
+%   частичным порядком, заданным определением~\ref{def:morphorder}.
+  
+%   \end{Proposition}
+  
+%   \begin{proof}
+%       Проверим явно аксиомы полурешетки.
+%   \begin{enumerate}
+%       \item Рефлексивность следует из определения.
+%       \item Транзитивность: если $\sigma_1 \circ \sigma_2 = \sigma_1$ и $\sigma_2 \circ \sigma_3 = \sigma_2$, то $\sigma_1 \circ \sigma_3 = \sigma_1$, т.к.
+%       $\forall \delta \in \Sigma \; \sigma_1(\sigma_3(\delta)) = \sigma_1(\sigma_2(\sigma_3(\delta))) = \sigma_1(\sigma_2(\delta)) = \sigma_1(\delta)$.
+%       \item Антисимметричность: предположим, что $\exists \delta \in \Sigma : \sigma_1(\delta) \neq \sigma_2(\delta)$. 
+%       Тогда $\sigma_1(\sigma_1(\delta)) = \sigma_1(\delta) \neq \sigma_1(\delta) = \sigma_1(\sigma_2(\delta))$, противоречие.
+%   \end{enumerate}
+  
+%   % Согласованно с порядком введем операцию $\sqcup = sup$ (будем называть её синонимично обобщением или join для двух стандартных морфизмов).
+%   % Поскольку класс стандартных морфизмов рассматривается для одного алфавита, то морфизм однозначно задается разбиением и операция $\sqcup$ задается следующим образом:
+%   \end{proof}
+
+\begin{Definition}[Строковое свойство]
+\label{def:string-property}
+Зафиксируем некоторый алфавит $\Sigma$, будем иметь целью описание некоторых подмножеств моноида $\Sigma^+$.
+
+Строковым свойством (String Property, SP) назовем пару $(\sigma, E)$, где 
+$\sigma:~\Sigma^*~\to~\Sigma^*$ --- стандартный морфизм, $E$ --- система линейных уравнений в словах над алфавитом $\Sigma' = im(\sigma|_{\Sigma}) \setminus \{\varepsilon\}$
+вида, представленного в системе~\ref{eq:system-of-equations}.
+
+Каждое строковое свойство задает в $\Sigma^+$ некоторый язык  $L_{\sigma, E} = \Lang((\sigma, E)) = \sigma^{-1}(\Lang(E))$.  
+Здесь $\Lang(E)$ --- $Z$-проекция множества решений системы $E$ как языка над
+$\Sigma'$.
+\end{Definition}
+
+
+
+Конкретизацию строкового свойства будем также обозначать
+$\gamma\bigl((\sigma, E)\bigr) =  L_{\sigma, E}$.
+
+Зафиксируем стандартный морфизм $\sigma$ и рассмотрим все строковые свойства
+$(\sigma, E_1)$ и $(\sigma, E_2)$ с этим морфизмом. Между ними естественно вводится порядок по
+включению конкретизаций:
+\[
+    (\sigma, E_1) \;\preceq\; (\sigma, E_2)
+    \;\;\iff\;\;
+    \gamma\bigl((\sigma, E_2)\bigr) \,\subseteq\, \gamma\bigl((\sigma, E_1)\bigr).
+\]
+
+Совокупность таких свойств с фиксированным $\sigma$ обозначим $\SP(\sigma)$.
+
+\section{Абстрактный домен строковых объектов}
+\label{sec:sob}
+
+Для статического анализа строковых переменнных будем использовать абстрактный домен строковых объектов --- 
+объектов, содержащих в себе строковые свойства как компоненты.
+
+Среди стандартных морфизмов выделим два канонических:
+\begin{itemize}
+    \item тождественный морфизм $\mathrm{id}$: $SP = (\mathrm{id}, E)$ абстрагирует 
+    \emph{значение} строки;
+    \item морфизм $\sigma_{\forall\to\delta_\varnothing}$, склеивающий весь алфавит
+    в выделенный символ $\delta_\varnothing$: $SP = (\sigma_{\forall\to\delta_\varnothing}, E)$,
+    задаёт унарное представление нижней границы \emph{длины} строки.
+\end{itemize}
+
+\begin{Definition}[абстрактный строковый объект]
+\label{def:sob-element}
+Зафиксируем алфавит $\Sigma$ и конечный набор стандартных морфизмов
+$\sigma_1, \ldots, \sigma_n$.
+\emph{Абстрактным строковым объектом} называется кортеж
+\[
+    \nu \;=\; \bigl\langle\, \mathrm{val}(\nu),\; \mathrm{len}(\nu),\;
+        \mathrm{prop}_1(\nu),\, \ldots,\, \mathrm{prop}_n(\nu) \,\bigr\rangle,
+\]
+в котором $\mathrm{val}(\nu) \in \SP(\mathrm{id})$,
+$\mathrm{len}(\nu) \in \SP(\sigma_{\forall\to\delta_\varnothing})$ и
+$\mathrm{prop}_i(\nu) \in \SP(\sigma_i)$ для каждого $i = 1, \ldots, n$.
+Его конкретизацией называется пересечение конкретизаций всех компонент:
+\[
+    \gamma(\nu) \;=\; \gamma\bigl(\mathrm{val}(\nu)\bigr) \,\cap\, \gamma\bigl(\mathrm{len}(\nu)\bigr)
+        \,\cap\, \bigcap_{i=1}^{n} \gamma\bigl(\mathrm{prop}_i(\nu)\bigr).
+\]
+\end{Definition}
+
+\begin{Definition}
+\label{def:sob}
+\emph{Абстрактным доменом строковых объектов} называется редуцированное произведение
+полурешёток строковых свойств
+%  TODO: добавить
+\end{Definition}
+
+
+
+
+\section{Нормализация свойства}
+
+\begin{Definition}
+  Словарем будем называть множество строк $D = \{w_1, w_2, \ldots, w_n\}$, обладающее 
+  свойством: никакая строка этого множества не является подстрокой другой строки из $D$.
+  \end{Definition}
+  
+  \begin{Definition}
+  Расширенным словарем будем называть тройку множеств $D = \langle P, S, I \rangle$, 
+  где $P$ --- множество префиксов, $S$ --- множество суффиксов, $I$ --- множество инфиксов и при этом:
+  \begin{itemize}
+      \item $I$ удовлетворяет определению словаря;
+      \item строки из $I$ не являются подстроками (возможно, несобственными) строк из $P$ или $S$;
+      \item $P$ и $S$ --- пустые множества или множества из одного элемента.
+  \end{itemize}
+  
+  Строки, обозначающие префикс и суффикс расширенного словаря будем сопровождать 
+  маркерами начала и конца строки, таким образом они будут иметь вид $\textasciicircum w$ и $w \$$ соответственно.
+  Расширенный словарь будем коротко записывать как множество $D~=~\{\textasciicircum p, s \$, w_1, w_2, \ldots, w_n\}$.
+  \end{Definition}
+  
+  Таким образом, расширенный словарь, не имеющий префиксов и суффиксов, является словарем, и вышеобозначенная запись в виде 
+  множества строк объединяет определения словаря и расширенного словаря. Поэтому далее под словарем будет
+  подразумеваться расширенный словарь, если явно не указано отсутствие ограничения на наличие префиксов и суффиксов.
+  
+  Условия, отличающие словарь от обычного множества (с выделенным, возможно, суффиксом и префиксом), необходимы,
+  чтобы однозначно сопоставить язык, задаваемый словарем, и сам словарь.
+  
+  \begin{Definition}
+  Языком словаря $D$ будем называть множество строк 
+  
+  $\Lang(D)~=~\{a \in \Sigma^+ \;|\; \forall w_i \in I  \quad a \in P\Sigma^* \, \cap \, \Sigma^*S \, \cap \, \Sigma^*w_i\Sigma^* \}$.
+  \end{Definition}
+
+  Многообразие языков, задаваемых рассширенными словарями, представляет собой класс языков, задаваемых системами линейных уравнений вида~\ref{eq:system-of-equations} без 
+  уравнений $Z = c$ (при фиксированном алфавите).
+
+\begin{Definition}[Задача внутренней нормализации строкового свойства]
+Представление языка $L \subseteq \Sigma^*$ $L = \bigcap_{i=1}^n L_i$ ($L_i$ имеет вид $ \Sigma^* w_i \Sigma^*$ или $w_i \Sigma^*$ или $\Sigma^* w_i$ или $w_i$, $w_i \in \Sigma^*$)
+является нормализованным, если выполняются следующие условия.
+\begin{enumerate}
+\item Cреди компонент пересечения нет такой $L_i$, что $L_i \subseteq L_j$ для $i \neq j$ (отсутствие избыточности). 
+\item Не существует такого $L_{n+1}$, что $L = L \cap L_{n+1}$ и при этом не нарушено предыдущее условие (полнота представления).
+\end{enumerate}
+
+Соответственно, для нормализации представления необходимо убрать компоненты, нарушающие первое условие, и добавить компоненты,
+нарушающие второе.
+\end{Definition}
+
+Отметим, что проверка отсутствия избыточности представления более тривиальна, чем поиск полноты представления.
+
+% TODO: состальться на определение словаря/факторкода и привести условие отсутствия избыточных уравнений
+
+Для внутренней нормализации строкового свойства необходимо следующее утверждение, представленное в статье [АН архив] в терминах неизбегаемых подстрок.
+Приведем здесь переформулировку 
+% с альтернативным обоснованием
+, проиллюстрировав связь с известными свойствами класса LT-языков.
+
+\begin{Proposition}
+Пусть $L$ --- язык вида, представленного в задаче нормализации строкового свойства, в котором выполнено условие отсутствия избыточности.
+Тогда,
+\begin{itemize}
+\item если $|\Sigma| > 2$, свойство полноты представления всегда выполняется;
+\item если $|\Sigma| = 2$, свойство полноты представления могут нарушать только компоненты вида $\Sigma^* ab^n \Sigma^*$ и $\Sigma^* b^n a \Sigma^*$
+($\Sigma = \{a, b\}$).
+\end{itemize}
+\end{Proposition}
+
+\begin{proof}
+
+0. Отметим, что компоненты вида $w_i \Sigma^*$, $\Sigma^* w_i$ и $w_i$ не могут нарушать свойство полноты представления.
+
+% TODO
+
+\end{proof}
+
+
+\section{LTL-свойства}
+
+
+\begin{Definition}
+Язык $L \subseteq \Sigma^+$ называется \emph{строго $k$-тестируемым (strictly $k$-testable)},
+если существуют число $k>0$ и четыре множества $U,V,W,F$ такие, что
+\[
+F, U, V \subseteq \Sigma \cup \Sigma^2 \cup \cdots \cup \Sigma^{k-1},
+\qquad
+W \subseteq \Sigma^k,
+\]
+и
+\[
+L=\big[(U\Sigma^* \cap \Sigma^*V)\setminus \Sigma^*W\Sigma^*\big]\cup F.
+\]
+
+Язык, строго $k$-тестируемый для некоторого $k>0$, называется \emph{строго локально тестируемым (strictly locally testable, SLT)}.
+\end{Definition}
+
+\begin{Definition}
+Язык $L \subseteq \Sigma^+$ называется \emph{$k$-тестируемым (k-testable)}, если он является булевой
+комбинацией строго $k$-тестируемых языков.
+
+Язык называется \emph{локально тестируемым (locally testable, LT)}, если он $k$-тестируем для некоторого $k>0$.
+\end{Definition}
+
+
+Интерес представляют языки вида 
+$$
+L = \bigcap_{i=1}^n L_i, \text{где } L_i \text{ имеет вид либо } \Sigma^* w_i \Sigma^*, 
+\text{ либо } w_i \Sigma^* \text{ либо } \Sigma^* w_i , w_i \in \Sigma^*.
+$$
+
+Поскольку язык вида $\Sigma^* \setminus \Sigma^* w_i \Sigma^*$ локально тестируем (более того, строго локально тестируем),
+то $\Sigma^* w_i \Sigma^*$ также локально тестируем. Очевидно, что $w_i \Sigma^*$ и $\Sigma^* w_i$ также строго локально тестируемы,
+из чего следует, что $L$, представленный как пересечение этих компонент --- LT-язык.
+
+Проекция решения на переменную $Z$ позволяет кодировать некоторое множество строк, поскольку из системы известны
+ограничения на их префиксы, суффиксы и инфиксы. Несмотря на то, что $Z$-проекция решения --- регулярный язык,
+при возрастании числа уравнений возрастает трудоемкость построения для него альтернативного представления, поэтому
+хранение словаря --- набора константных строк из уравнений системы --- является наиболее эффективным. 
+
+Например, пустое множество решений может задаваться любой системой с набором противоречащих друг другу уравнений,
+что легко проверяется анализом константных строк, входящих в уравнения, но трудоемко, если использовать ДКА для каждого уравнения и их пересечения.
+
+
+\begin{Proposition}
+Строковое свойство $(\sigma, E)$ задает LT язык тогда и только тогда, когда верно одно из следующего:
+\begin{itemize}
+% \item $S$ не имеет уравнений;
+\item $|im(\sigma|_{\Sigma})| = 1$;
+\item $im(\sigma|_{\Sigma}) = \{\alpha, \varepsilon\}$ и $E$ содержит только уравнения вида $Z = X \alpha Y$, $Z = X \alpha$, $Z = \alpha Y$;
+\item $\sigma$ --- нестирающий морфизм;
+\item $\sigma$ --- стирающий морфизм, $E$ --- система уравнений, имеющая только уравнения вида 
+$Z = X_i \alpha_i Y_i$, где $\alpha_i \in im(\sigma|_{\Sigma})$.
+\end{itemize}
+\end{Proposition}
+
+\begin{proof}
+    Отметим, что для случая $|im(\sigma)| = 1$ свойство задает LT язык, поскольку в этом случае $im(\sigma|_{\Sigma}) = \{\alpha\}$ или $im(\sigma|_{\Sigma}) = \{\varepsilon\}$.
+    Вторая альтернатива тривиальна, а в первом случае это свойство задает ограничение лишь на длину строки.
+
+    \underline{1.} Пусть $\sigma$ --- нестирающий морфизм. 
+
+    \underline{1.1.} Если $E = \{Z = c\}$, то, поскольку алфавит конечный, $\Lang((\sigma, E)) = \sigma^{-1}(c) = \bigcup_{i=1}^n \{c_i\}, c_i \in \Sigma^+$, что дает LT язык.
+
+    \underline{1.2.} Система уравнений не представляет собой константное уравнение. 
+    Зададим отображение уранения во множество строк, которое оно задает в данном строковом свойстве.
+    \begin{align*}
+        Z = X w Y &\mapsto \Sigma^* \sigma^{-1}(w) \Sigma^* \\
+        Z = X w &\mapsto \Sigma^* \sigma^{-1}(w) \\
+        Z = w Y &\mapsto \sigma^{-1}(w) \Sigma^*
+    \end{align*}
+
+    (Прим.: напомним, что $\sigma^{-1}(w) = \{v \in \Sigma^* \mid \sigma(v) = w\}$ и запись $A B C$, где $A, B, C$ --- множества строк,
+    означает множество $\{abc | a \in A, b \in B, c \in C\}$)
+
+    Очевидно, что множество строк, задаваемых уравнением каждого вида --- LT язык, а следовательно их пересечение также является LT языком.
+
+    \underline{2.} Пусть $\sigma$ --- стирающий морфизм, $im(\sigma|_{\Sigma}) \neq \{\varepsilon\}$.
+
+    Для доказательства далее будем использовать алгебраическую характеризацию LT языков [ссылка]:
+    язык $L$ является LT языком тогда и только тогда, когда его синтаксическая полугруппа $\mathcal{S}(L)$ локально идемпотентна (т.е. для 
+    любого идемпотента $e \in \mathcal{S}(L)$ $e\mathcal{S}(L)e$ идемпотентна и коммутативна).
+
+    Будем обозначать $[w]$ --- элемент синтаксической полугруппы $\mathcal{S}(L)$, соответствующий строке $w \in \Sigma^+$. 
+    
+    Поскольку язык задается строковым свойством, то определение синтаксической конгруэнции $\sim_L$ можно эквивалентно переписать так:
+    \begin{center}
+    $u \sim_L v$ если $ \forall x, y \in \Sigma^+ \; \sigma(xuv) \text{ удовлетвояет системе } E \iff \sigma(xvy) \text{ удовлетвояет системе } E$.
+    \end{center}
+
+    Пусть $\sigma(\gamma) = \varepsilon$. Тогда $[\gamma]$ --- идемпотент в $\mathcal{S}(L)$.
+
+    \underline{2.1.} Покажем, что случай $E = \{Z = c\}$ не дает LT язык. $[\gamma c \gamma]$ не является идемпотентом в $[\gamma] \mathcal{S}(L) [\gamma]$, поскольку
+    $\gamma c \gamma \not \sim_L \gamma c \gamma \gamma c \gamma$.
+
+    \underline{2.2.} Иначе расматриваем неконстантные системы уравнений. 
+
+    Пусть $A$ --- множество символов, встречающихся в строках системы уравнений, 
+    $A \subseteq im(\sigma|_{\Sigma}) \setminus \{\varepsilon\} \subseteq \Sigma$.
+
+    \underline{2.2.1.} $|A| = 1, A = \{\alpha\}$.
+    По предположению о локальной тестируемости языка, верно следующее:
+    \begin{align*}
+        [\gamma \alpha \gamma] [\gamma \alpha \gamma] &= [\gamma \alpha \gamma] \\
+        [\gamma \alpha \alpha \gamma] [\gamma \alpha \alpha \gamma] &= [\gamma \alpha \alpha \gamma]
+    \end{align*}
+
+    Тогда для натурального $n$ $\alpha^n \in L$ и $\alpha \sim_L \alpha^n$, отсюда следует, что ограничения могут быть только однобуквенными.
+    Тогда система уравнений имеет вид $\{Z = \alpha X_1; Z = X_2 \alpha\}$, или $\{Z = X \alpha\}$, или  $\{Z = \alpha X\}$, или 
+    $\{Z = X \alpha Y\}$.
+
+    \begin{enumerate}
+        \item $\{Z = X \alpha Y\}$: является LT языком, а именно $\Sigma^* \alpha \Sigma^*$.
+        \item $\{Z = \alpha X_1; Z = X_2 \alpha\}$: для $\Sigma = \{\alpha, \gamma\}, \gamma \mapsto \varepsilon$ язык является LT (а именно 
+        $(\gamma^* \alpha \gamma^*)^+ = A^+ \setminus \gamma^+$); если $\exists \beta \mapsto \beta$, язык не является LT (контрпример: слова $\gamma^k \alpha \gamma^k  \beta \gamma^k$ и
+        $\gamma^k \alpha \gamma^k \beta \gamma^k \alpha \gamma^k$ имеют одинаковые $k$-подстроки, но первое не приналежит языку).
+        \item $\{Z = \alpha X\}$ для однобуквенного отображения задает тот же язык, что описывает предыдущий пункт. Для случая $\exists \beta \mapsto \beta$ аналогично 
+        не является LT языком.
+        \item $\{Z = X \alpha\}$: полностью симметрично предыдущему пункту. 
+    \end{enumerate}
+
+    \underline{2.2.2.} $|A| > 1, A = \{\alpha_1, \ldots, \alpha_n\}, \sigma(\alpha_i) = \alpha_i$.
+
+    Аналогично рассуждению выше, из комммутативности и идемпотентности 
+    $$\alpha_i\alpha_i \sim_L \alpha_i, \quad \alpha_i\alpha_j \sim_L \alpha_j\alpha_i$$.
+    
+    Пусть $w = \alpha_{k_1} \ldots \alpha_{k_m} \in A^+,\; k_j \in \{1, \ldots, n\}$, $w$ --- минимальная по длине строка, удовлетворяющая системе уравнений (minimal common superstring).
+    Тогда $w~\sim_L~\alpha_{i_1}~\alpha_{i_2}~\ldots~\alpha_{i_m}$, $(i_1, \ldots, i_m)$ --- такая 
+    перестановка множества $\{k_1, \ldots, k_m\}$, где если $\alpha_{i_j} = \alpha_{i_{(j + s)}}$, то $\forall t \leq s, t \geq 0 \; \alpha_{i_{(j + t)}} = \alpha_{i_j}$.
+
+    Воспользовавшись свойством идемпотентности для соседних символов, получаем $w \sim_L w' = \alpha_{p_1} \alpha_{p_2} \ldots \alpha_{p_r}$, $\alpha_{p_i}$ --- различные символы, $r \leq m$.
+
+    \underline{2.2.2.А.} Покажем, что для случая подстрок длины $\geq 2$ в оставшемя подслучае язык не является LT.
+
+    Если в системе уравнений есть уравнения с подстроками (с префиксами или суффиксами) длины 2 или более, то верно одно из двух:
+    \begin{enumerate}
+        \item $|w'| < |w|$ и, так как $w$ --- минимальная строка, $w'$ не удовлетворяет системе уранений, т.е. $w' \not \sim_L w$.
+        \item $|w'| = |w|$, $w' \sim_L w$, $w'$ --- одна из минимальных строк, удовлетворяющих системе уравнений. \\
+        Слово $w'$ содержит только различные символы, значит в уравнении системы с подстрокой длины $\geq 2$ будут использоваться различные символы, условно $\alpha_a, \alpha_b$.
+    Сконструируем слово $w''$, полученное из $w'$ перестановкой $\alpha_a$ и $\alpha_b$. Поскольку сочетание $\alpha_a \alpha_b$ теперь не встречается в $w'$, то 
+    получаем противоречие: $w' \not \sim_L w$. 
+    \end{enumerate}
+
+    
+
+    \underline{2.2.2.Б.} Покажем утверждение теоремы для систем, содержащих уравнения только вида $Z = X \alpha_i Y$, $Z = X \alpha_j$, $Z = \alpha_k Y$.
+    
+    Заметим, что наличие уравнений на префикс или суффикс выводит язык из класса LT. Пусть есть уравнение $Z = \alpha_{p_1} W$, и $w'$ удовлетворяет системе уравнений.
+    По построению $\alpha_{p_2} \neq \alpha_{p_1}$, значит $w'' = \alpha_{p_2} \ldots \alpha_{p_r} \alpha_{p_1} \not \sim_L w'$. Симметричное расссуждение проводится и для суффикса.
+
+    Для систем, состоящих только из уравнений вида $Z = X \alpha Y$, легко видеть, что задаваемый их строковым свойством язык является LT.
+    \begin{align*}
+    \Lang((\sigma, \{Z = X \alpha Y\})) = \Sigma^* \alpha \Sigma^* \\
+    L = \Lang((\sigma, E)) =  \bigcap_{i=1}^k \Sigma^* \alpha_{p_i} \Sigma^* 
+    \end{align*}
+    
+    Таким образом, покрыв рассуждением все языки, задаваемые строковыми свойствами, получаем утверждение теоремы.
+
+\end{proof}
+
+% \begin{Proposition}
+
+
+\section{Стандартные и монотонные морфизмы}
+
+Зададим следующие операции на классе стандартных морфизмов:
+
+\begin{align}
+    \label{morphmeet}
+    (f \sqcap g)(x) &= \min(f^{-1}(f(x)) \cap g^{-1}(g(x))) \quad \text{ (meet)}; \\
+    \label{morphjoin}
+    (f \sqcup g)(x) &= \min [x]_{f,g} \quad \text{ (join)}.
+\end{align}
+
+Здесь $[x]_{f,g}$ --- класс эквивалентности отношения $\sim_{f, g}$, которое задается для пары морфизмов $f, g$ следующим образом:
+
+\begin{equation}
+x \sim_{f,g} f(x) \wedge x \sim_{f,g} g(x) \text{ для всех } x.
+\end{equation}
+
+\begin{Proposition}
+Операции join и meet (соотношения~\ref{morphmeet} и~\ref{morphjoin}) задают решетку на стандартных морфизмах.
+Эти операции согласованы с частичным порядком из определения~\ref{def:morphorder}.
+\end{Proposition}
+
+\begin{proof}
+
+    Покажем корректность операций относительно порядка.
+
+    1.1. $f \sqcap g \preceq f$. Действительно, $(f \sqcap g)(x) \in f^{-1}(f(x))$, значит $f((f \sqcap g)(x)) = f(x)$ для всех $x$.
+
+    1.2. $g \preceq f \iff f \sqcap g = g$. 
+
+    ($\Rightarrow$). Пусть $f(g(x)) = f(x)$, тогда, т.к. $g(g^{-1}(g(x))) = g(x)$, то $f(g(g^{-1}(g(x)))) = f(g^{-1}(g(x))) = f(g(x)) = f(x)$, т.е.
+    $f^{-1}(f(x)) \supseteq g^{-1}(g(x))$ (это соответствует тому, что разбиение алфавита в меньшем морфизме всегда вкладывается в разбиение алфавита в большем морфизме).
+
+    Отсюда следует, что $f^{-1}(f(x)) \cap g^{-1}(g(x)) = g^{-1}(g(x))$, что доказывает первую часть утверждения.
+
+    ($\Leftarrow$). Из определения операции получаем вложение $f^{-1}(f(x)) \supseteq g^{-1}(g(x))$ (иначе для элементов вне пересечения поведение meet-морфизма отличалось бы от $g$).
+    Далее, $f(g(g^{-1}(g(x)))) = f(x)$, т.е. $f(g(g(x))) = f(g(x)) = f(x)$.
+
+    2.1. $f \sqcup g \succeq f$. Действительно, $f(x) \in [x]$, значит $(f \sqcup g)(f(x)) = (f \sqcup g)(x)$ для всех $x$.
+
+    2.2. $g \preceq f \iff f \sqcup g = f$. 
+
+    ($\Rightarrow$). Пусть $f(g(x)) = f(x)$. Выше обосновано, что $f^{-1}(f(x)) \supseteq g^{-1}(g(x))$, поэтому $[x] = f^{-1}(f(x))$, значит $min[x] = f(x)$.
+
+    ($\Leftarrow$). Равенство означает, что $[x]_{f,g} = f^{-1}(f(x))$, значит $f(x) \sim_{f,g} x \sim_{f_g} y \in g^{-1}(g(x))$, что снова приводит в вложению разбиений, и
+    аналогично доказательству для meet снова приводит к требуемому утверждению. 
+
+    3. Идемпотентность, коммутативность, ассоциативность обеих операций следует из их определения и определения стандратного морфизма.
+
+    4. Поскольку уже показана согласованность пордка с операциями, законы поглощения обосновать несложно.
+    Поскольку $f \succeq (f \sqcap g) $, то $f \sqcup (f \sqcap g) = f$. Полностью по аналогии $f \sqcap (f \sqcup g) = f$.
+\end{proof}
+
+% монотонные
+
+Рассмотрим класс монотонных стандартных нестирающих морфизмов. А именно,
+зафиксировав алфавит $\Sigma$, снабженный линейным порядком, монотонный морфизм ---
+морфизм, удовлетворяющий свойству $\forall a, b \in \Sigma, a \leq b \implies \sigma(a) \leq \sigma(b)$.
+
+Поскольку $\Sigma$ --- линено упорядоченное множество, то верно и следующее: если $\sigma(a) < \sigma(b)$, то $a < b$ для всех $a, b \in \Sigma$.
+
+Монотонные стандартные нестирающие морфизмы не имеют <<разорванных>> разбиений, т.е. для любого $\Sigma_i$
+все элементы алфавита в диапазоне (согласно линейному порядку) от $min(\Sigma_i)$ до $max(\Sigma_i)$ также входят в $\Sigma_i$. 
+
+\begin{Proposition}
+    Порядок на стандартных морфизмах $\preceq$, заданный ранее ($\sigma \preceq \tau \iff \tau \circ \sigma = \tau$), для 
+    множества монотонных стандартных нестирающих морфизмов эквивалентен порядку 
+    $\preceq_M$, заданному следующим образом:
+    $$
+    \sigma \preceq_M \tau \iff \forall x \in \Sigma, \tau(x) \preceq \sigma(x).
+    $$
+\end{Proposition}
+
+\begin{proof}
+    Для доказательства приведем явную проверку эквивалентности 
+    $$
+    \tau \circ \sigma = \tau \iff \forall x \in \Sigma, \; \tau(x) \leq \sigma(x).
+    $$
+
+    \underline{$\implies$.} 
+    $\tau(\sigma(x)) = \tau(x)$ для всех $x \in \Sigma$. По определению стандартного морфизма $\tau(x) \leq x$, подставляя аргумент ---
+    $\tau(x) = \tau(\sigma(x)) \leq \sigma(x)$.
+    
+    \underline{$\impliedby$.} 
+    $\tau(x) = \tau(\tau(x)) \leq \tau(\sigma(x))$ с одной стороны. С другой: $\sigma(x) \leq x$, значит $\tau(\sigma(x)) \leq \tau(x)$. Поскольку
+    это верно для всех $x \in \Sigma$, получаем требуемое равенство.
+\end{proof}
+
+Добавление монотонности позволяет упростить вычисление операций join и meet для монотонных стандартных нестирающих морфизмов следующим образом:
+
+\begin{align}
+  \label{morphmeetmono}
+  \bigl(\sigma \sqcap \theta \bigr)(x) = \max (\sigma (x), \theta(x))\\
+  \label{morphjoinmono}
+  \bigl(\sigma \sqcup \theta\bigr)(x) = (\sigma \circ \theta)^* (x) = (\theta \circ \sigma)^* (x),
+\end{align}
+здесь $\tau = (\sigma \circ \theta)^*$ --- неподвижная (фиксированнная) точка отображения $\sigma \circ \theta$. 
+
+Эти соотношения --- монотонные аналоги соотношений~\ref{morphmeet} и~\ref{morphjoin}. 
+
+Для конкретного аргумента $x$ элементы разбиения двух морфизмов $\sigma^{-1}(\sigma(x))$ и $\theta^{-1}(\theta(x))$ непрерывны,
+пересекаются по непрерывному отрезку и при этом $\min \sigma^{-1}(\sigma(x)) = \sigma(x)$ (что верно и для $\theta$). Поэтому минимальный элемент в пересечении прообразов ---
+именно $\max (\sigma(x), \theta(x))$, что и задает операцию meet.
+
+Для монотонных морфизмов класс эквиватентности $[x]_{f,g}$ содержит каждую точку на пути стабилизации отображения 
+$x \mapsto  \theta (x) \mapsto (\sigma \circ \theta) (x) \mapsto (\theta \circ \sigma \circ \theta) (x) \mapsto (\sigma \circ \theta \circ \sigma \circ \theta) (x) \mapsto \hdots \mapsto \tau(x)$
+и каждый переход этой цепочки невозрастающий. Это прямое следствие монотонности: если $\sigma(x) \leq \theta(x)$, то $\theta(\sigma(x)) \leq \theta(x)$ и 
+при этом $\sigma(\theta(x)) \leq \sigma(x)$ (т.к. по определению стандартного морфизма $\theta(x) \leq x$); если же $\theta(x) \leq \sigma(x)$, рассуждаем симметрично. 
+
+Именно поэтому композиции $\sigma \circ \theta$ и $\theta \circ \sigma$ стабилизируются в одной точке для монотонных морфизмов. Для немонотонных морфизмов
+это неверно: утверждение $\sigma(x) \leq \theta(x) \implies \theta(\sigma(x)) \leq \theta(x)$ может не выполняться, что приведет к тому, 
+что фиксированнные точки композиций будут различаться, что в принципе нарушит условие присутствия точной верхней грани.
+
+\begin{Example}
+Пусть $\Sigma = \{a, b, c\}$ с линейным порядком $a < b < c$, и стандартные морфизмы $\sigma, \theta$ заданы следующим образом:
+$$
+\sigma(a) = a, \sigma(b) = b, \sigma(c) = a, \\
+\theta(a) = a, \theta(b) = b, \theta(c) = b.
+$$
+Тогда $\sigma \circ \theta = \theta$ и $\theta \circ \sigma = \sigma$. 
+
+Таким образом, поскольку эти морфизмы не монотонны, $(\sigma \circ \theta)^*$ и $(\theta \circ \sigma)^*$ будут различаться и, более того,
+не будут являться верхними гранями для $\sigma$ и $\theta$, поскольку они несравнимы.
+
+Прямой проверкой также можно убедиться, что определение монотонного meet~\ref{morphmeetmono} для этой пары морфизмов также не даст точную нижнюю грань.
+
+\end{Example}
+
+
+\section{Кросс-нормализация}
+\label{sec:cross-normalization}
+
+Строковые свойства --- компоненты одного строкового объекта, рассматриваемые одновременно. Поэтому в явном виде
+множество строк, описываемых строковым объектом, можно описать пересечением 
+языков всех его строковых свойств.
+
+\begin{Definition}
+Кросс-нормализацией строкового свойства $SP_1$ относительно другого строкового свойства $SP_2$ называется 
+добавление всех уравнений допустимого $SP_1$ вида, которые описывают язык $\Lang(SP_1) \cap \Lang(SP_2)$. 
+\end{Definition}
+
+Каждое уравнение $SP_2$ описывает язык $I_2$ одного из видов: $\Sigma^* \sigma_2^{-1}(w) \Sigma^*$,
+$\Sigma^* \sigma_2^{-1}(w)$, $\sigma_2^{-1}(w) \Sigma^*$, $\sigma_2^{-1}(w)$.
+
+Кросс-нормализация $SP_1$ относительно $SP_2$ решает задачу нахождения такого множества строк $I_1 \subseteq \Sigma^+$, что
+$\sigma_1(I_1) \supseteq \sigma_1(I_2)$, при этом $\sigma_1(I_1)$ является множеством строк, задаваемым уравнением (или уравнениями) одного из
+допустимых видов.
+
+Неформально, это означает, что в систему уравнений $SP_1$ добавляются все возможные уравнения, которые также 
+описывают пересечение языков $SP_1$ и $SP_2$, поскольку строковые свойства для одного объекта имеют целью описать 
+множество конкретизации объекта в разных <<проекциях>>.
+
+Из определения строкового свойства $I_2$ представляет собой объединение тривиальных компонент, тем временем $\sigma_1(I_1)$
+должно иметь форму пересечения некоторых также тривиальных компонент. Тривиальные компоненты --- левые, правые и двусторонние идеалы $\Sigma^+$, 
+а также множества-синглтоны из одной строки $\{w\}$. Кроме того, т.к. $I_2$ --- язык одного конкретного уравнения,
+он является либо левым, либо правым, либо двусторонним идеалом, либо конечным множеством строк. Покрывающее множество $I_1$
+должно являться более объемлющим; к примеру, $\sigma_1(I_1)$ не может быть левым идеалом, если $I_2$ --- язык уравнения на инфикс.
+
+....... здесь будут соображения о том, что минимальный покрывающий идеал  --- пересечение "подстроковых" идеалов для некоторых строк ....
+% TODO: добавить
+
+Некоторая подстрока $w$ будет задавать покрывающий идеал или константное уравнение только если выполняется следующее 
+\underline{необходимое условие кросс-переноса} (в $SP_1$ из $SP_2$):
+\begin{equation}
+    \sigma_1(\sigma_2^{-1}(w)) \text{ --- синглтон. }
+\end{equation}
+
+Поскольку для строковых свойств, задающих LT языки, верно, что неконстантные уравнения задают либо левый, либо правый, либо двусторонний идеал, то и в обратную сторону,
+нахождение покрывающего идеала --- достаточно простая задача. Однако это неверно для не-LTL свойств: каждое уравнение такого свойства задает регулярный, но не LT язык, что 
+затрудняет нахождение нетривиального языка, представимого уравнением другого строкового свойства. 
+
+Более того, поскольку из LTL-свойств переносятся только некоторые сохраняемые относительно морфизмов подстроки, это 
+позволяет передать максимум информации в сравнимые свойства. При этом в несравнимое с данным строковое свойство переносятся
+уравнения, которые также возможно перенести в некоторое сравнимое свойство. Для не-LTL свойств подобный механизм не работает
+из-за более сложной структуры языков. 
+
+Пусть в некотором уравнении строкового свойства используются только символы из $A \subseteq \Sigma$, 
+тогда для не-LTL свойства в худшем случае найдется порядка  $2^{|A|}$ несравнимых по морфизму строковых свойств (поскольку, опираясь на структуру уравнения, различные символы уравнения
+могут по-разному быть объединены в разбиении, что существенно влияет на структуру переносимых уравнений). Это 
+отражено на рисунке~\ref{fig:nonltl}: на пунктирных стрелках подписаны подстроки, переносимые в несравнимое свойство.
+
+\begin{figure}[htb]
+    
+\begin{center}
+\begin{tikzpicture}[
+    y=1.38cm,
+    lat/.style={
+      rectangle,
+      draw,
+      thick,
+      rounded corners=2pt,
+      minimum width=2.3cm,
+      minimum height=0.95cm,
+      align=center,
+      inner sep=4pt,
+      fill=white
+    },
+    lat-empty/.style={
+      rectangle,
+      draw=black!35,
+      thick,
+      rounded corners=2pt,
+      minimum width=1.65cm,
+      minimum height=0.72cm,
+      align=center,
+      inner sep=2pt,
+      fill=gray!14,
+      text=black!45
+    },
+    arrlbl/.style={
+      fill=white,
+      inner sep=2pt,
+      font=\footnotesize,
+      pos=0.6,
+      above
+    },
+    tag/.style={
+      rectangle,
+      draw,
+      thick,
+      rounded corners=1pt,
+      font=\scriptsize,
+      inner sep=3pt,
+      align=center,
+      fill=white
+    }
+  ]
+  \node[lat] (R) at (3.85,3.3) {$\{abcd\}$};
+  \node[tag, anchor=west] at ($(R.east)+(0.18,0)$) {%
+    $\sigma:$\\
+    $a \rightarrow a$ \\%
+    $b \rightarrow b$ \\%
+    $c \rightarrow c$ \\%
+    $d \rightarrow d$ \\%
+    $e \rightarrow \varepsilon$};
+
+  \node[lat-empty] (L1) at (-5.7,3.75) {$\cdots$};
+  \node[tag, anchor=east] at ($(L1.west)+(-0.18,0)$) {%
+    $\{a,b,c,d,e\} \rightarrow a$};
+  \draw[dashed,->,thick] (R.west) --
+    node[arrlbl] {$\{aaaa\}$}
+    (L1.east);
+
+  \node[lat-empty] (L2) at (-5.7,2.5) {$\cdots$};
+  \node[tag, anchor=east] at ($(L2.west)+(-0.18,0)$) {%
+    $\{a,b,c,e\} \rightarrow a$ \\%
+    $d \rightarrow d$};
+  \draw[dashed,->,thick] (R.west) --
+    node[arrlbl] {$\{aaa, ad\}$}
+    (L2.east);
+
+  \node at (-5.7,1.6) {$\vdots$};
+
+  \node[lat-empty] (D3) at (-5.7,0.92) {$\cdots$};
+  \node[tag, anchor=east] at ($(D3.west)+(-0.18,0)$) {%
+    $\{a,c,e\} \rightarrow a$ \\%
+    $b \rightarrow b$ \\%
+    $d \rightarrow d$};
+  \draw[dashed,->,thick] (R.west) --
+    node[arrlbl] {$\{aba, ad\}$}
+    (D3.east);
+
+  \node at (-5.0,0.05) {$\vdots$};
+
+  \node[lat-empty] (D4) at (-4.6,-0.83) {$\cdots$};
+  \node[tag, anchor=east] at ($(D4.west)+(-0.18,0)$) {%
+    $a \rightarrow a$ \\%
+    $\{b,c,e\} \rightarrow b$ \\%
+    $d \rightarrow d$};
+  \coordinate (RsW) at ($(R.south west)!0.55!(R.west)$);
+  \draw[dashed,->,thick] (RsW) --
+    node[arrlbl] {$\{abb, bbd\}$}
+    (D4.north east);
+
+  \node at (-2.6,-0.83) {$\cdots$};
+
+  \node[lat-empty] (D1) at (-0.5,-0.83) {$\cdots$};
+  \node[tag, anchor=west] at ($(D1.east)+(0.18,0)$) {%
+    $a \rightarrow a$ \\%
+    $\{b, e\} \rightarrow b$ \\%
+    $c \rightarrow c$ \\%
+    $d \rightarrow d$};
+  \draw[dashed,->,thick] (R.south west) --
+    node[arrlbl] {$\{ab, bc, d\}$}
+    (D1.north east);
+
+  \node[lat-empty] (D2) at (3.85,-0.83) {$\cdots$};
+  \node[tag, anchor=west] at ($(D2.east)+(0.18,0)$) {%
+    $\{a, e\} \rightarrow a$ \\%
+    $b \rightarrow b$ \\%
+    $c \rightarrow c$ \\%
+    $d \rightarrow d$};
+  \draw[dashed,->,thick] (R.south) --
+    node[arrlbl] {$\{ab, c, d\}$}
+    (D2.north);
+\end{tikzpicture}
+\end{center}
+\label{fig:nonltl}
+\caption{Нетривиальный перенос уравнений из не-LTL свойства в несравнимые по морфизму свойства}
+\end{figure}
+
+Как было отмечено ранее, ни один из переносов в вышеприведенном примере не может быть совершен между данным и свойством со сравнимым с ним меньшим морфизмом.
+Для сравнимых стирающих морфизмов процесс кросс-переносов схож с кросс-переносом для LTL-свойств.
+
+При этом из-за стирания структура переносимого уравнения более непредсказуема и зависит от конкретной системы уравнений (см. рисунок~\ref{fig:cross-ltl-example}).
+
+\begin{figure}[htb]
+\begin{center}
+\begin{tikzpicture}[
+    y=1.38cm,
+    lat/.style={
+      rectangle,
+      draw,
+      thick,
+      rounded corners=2pt,
+      minimum width=2.3cm,
+      minimum height=0.95cm,
+      align=center,
+      inner sep=4pt,
+      fill=white
+    },
+    lat-empty/.style={
+      rectangle,
+      draw=black!35,
+      thick,
+      rounded corners=2pt,
+      minimum width=1.65cm,
+      minimum height=0.72cm,
+      align=center,
+      inner sep=2pt,
+      fill=gray!14,
+      text=black!45
+    },
+    arrlbl/.style={
+      fill=white,
+      inner sep=2pt,
+      font=\footnotesize,
+      pos=0.5,
+      above
+    },
+    tag/.style={
+      rectangle,
+      draw,
+      thick,
+      rounded corners=1pt,
+      font=\scriptsize,
+      inner sep=3pt,
+      align=center,
+      fill=white
+    }
+  ]
+  \node[lat] (D1) at (-2.8,2.2) {$\{abc\}$};
+  \node[tag, anchor=east] at ($(D1.west)+(-0.18,0)$) {%
+    $\sigma_1:$ \\%
+    $a \rightarrow a$ \\%
+    $b \rightarrow b$ \\%
+    $c \rightarrow c$ \\%
+    $\{d, e\} \rightarrow \varepsilon$};
+
+  \node[lat-empty] (D3) at (2.8,2.2) {$\cdots$};
+  \node[tag, anchor=west] at ($(D3.east)+(0.18,0)$) {%
+    $\sigma_2:$ \\%
+    $a \rightarrow a$ \\%
+    $\{b, e\} \rightarrow \varepsilon$ \\%
+    $\{c, d\} \rightarrow c$};
+
+  \node[lat-empty] (D4) at (0,0) {$\cdots$};
+  \node[tag, anchor=east] at ($(D4.west)+(-0.18,0)$) {%
+    $a \rightarrow a$ \\%
+    $b \rightarrow b$ \\%
+    $c \rightarrow c$ \\%
+    $d \rightarrow d$ \\%
+    $e \rightarrow \varepsilon$};
+
+  \draw[dashed,->,thick] (D1.east) --
+    node[arrlbl] {$\{ac\}$}
+    (D3.west);
+  \draw[dashed,->,thick] (D1.south east) to[bend left=22]
+    node[arrlbl] {$\{a,\, b,\, c\}$}
+    (D4.north);
+
+  \draw[thick] (D1.south) -- (D4.north);
+  \draw[thick] (D3.south) -- (D4.north);
+\end{tikzpicture}
+\end{center}
+\label{fig:cross-ltl-example}
+\caption{Кросс-перенос из SP стирающего стандартного морфизма}
+\end{figure}
+
+В данном случае в свойство ниже по решетке морфизмов не может сохранить ту же информацию, что и кросс-перенос (даже для двух не-LTL свойств).
+В этом их отличие от свойств, задающих LT языки.
+
+Перенос в LTL-свойства из не-LTL-свойств создает трудности для редукции строкового объекта в целом: именно LTL-свойства в некотором
+смысле более устойчивы к сохранению информации при строковых операциях, обобщении и т.п. Появление порядка $2^{|A|}$ таких <<спутников>>
+создает сложность для анализа в целом, поскольку, если стремиться к точности, необходимо отслеживать также все эти свойства.
+
+
+\begin{Proposition}
+Для LTL-свойств $SP_1 = (S_1, \sigma_1)$ и $SP_2 = (S_2, \sigma_2)$ верно следующее: если уравнение $e \in S_2$ может быть перенесено в $SP_1$, 
+то $e$ может быть перенесено в $(S_{meet}, \sigma_3 = \sigma_1 \sqcap \sigma_2)$. 
+
+При этом трансформация строки $w$ уравнения $e$ сохраняется: $\sigma_1(\sigma_2^{-1}(w)) = \sigma_1(\sigma_3(\sigma_2^{-1}(w)))$.
+\end{Proposition}
+
+\begin{proof}
+    
+    Пусть $\sigma_1(\sigma_2^{-1}(w)) = u$ --- слово из уравнения, которое переносится в $SP_1$. 
+
+    $\sigma_3(\sigma_2^{-1}(w)) = \min [ \sigma_1^{-1}(\sigma_1(\sigma_2^{-1}(w))) \cap \sigma_2^{-1}(\sigma_2(\sigma_2^{-1}(w))) ] = 
+    \min(\sigma_1^{-1}(u) \cap \sigma_2^{-1}(w))$ и т.к. из посылки теоремы $\sigma_1^{-1}(u) \supseteq \sigma_2^{-1}(w)$, то
+    $\sigma_3(\sigma_2^{-1}(w)) = \min(\sigma_2^{-1}(w)) = \sigma_2(w)$.
+
+    Дополнительное утверждение не требует отдельного обоснования, т.к. $\sigma_3 \preceq \sigma_1$ по определению.
+\end{proof}
+
+
+
+
+\end{document}
